@@ -1,0 +1,945 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07101d">
+  <title>grid_controller — Controle de geração</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07101d;
+      --panel: #0f1b2d;
+      --panel-2: #13223a;
+      --text: #eef5ff;
+      --muted: #9db0ca;
+      --meter: #4fb4ff;
+      --inverter: #51d6a1;
+      --setpoint: #ffbf69;
+      --error: #ff7f8d;
+      --ok: #48d597;
+      --warn: #ffcc66;
+      --bad: #ff7080;
+      --grid: rgba(172, 194, 222, .14);
+      --border: rgba(255, 255, 255, .08);
+      --shadow: 0 12px 36px rgba(0, 0, 0, .25);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(42, 111, 180, .18), transparent 34rem),
+        var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      width: min(100%, 1220px);
+      margin: 0 auto;
+      padding: max(16px, env(safe-area-inset-top))
+               max(14px, env(safe-area-inset-right))
+               max(26px, env(safe-area-inset-bottom))
+               max(14px, env(safe-area-inset-left));
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.15rem, 4vw, 1.75rem);
+      letter-spacing: .005em;
+    }
+
+    .subtitle {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: .8rem;
+    }
+
+    .live {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: .88rem;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--warn);
+      box-shadow: 0 0 0 4px rgba(255, 204, 102, .12);
+    }
+
+    .dot.online {
+      background: var(--ok);
+      box-shadow: 0 0 0 4px rgba(72, 213, 151, .12);
+    }
+
+    .dot.offline {
+      background: var(--bad);
+      box-shadow: 0 0 0 4px rgba(255, 112, 128, .12);
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .card, .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,.025), transparent), var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .card {
+      padding: 14px;
+      min-width: 0;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: .77rem;
+      margin-bottom: 7px;
+    }
+
+    .value {
+      font-size: clamp(1.05rem, 3.4vw, 1.45rem);
+      font-weight: 720;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .power {
+      font-size: clamp(1.8rem, 6vw, 3.25rem);
+      letter-spacing: -.045em;
+      line-height: 1;
+    }
+
+    .unit {
+      color: var(--muted);
+      font-size: .42em;
+      letter-spacing: 0;
+      margin-left: .18em;
+    }
+
+    .secondary {
+      color: var(--muted);
+      font-size: .74rem;
+      margin-top: 8px;
+      line-height: 1.35;
+    }
+
+    .status-row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .panel { padding: 13px; }
+
+    .panel-title {
+      margin: 0 0 10px;
+      font-size: .95rem;
+      font-weight: 680;
+    }
+
+    .inverters {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .inverter-card {
+      background: rgba(255,255,255,.025);
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      padding: 10px;
+      min-width: 0;
+    }
+
+    .inverter-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      font-size: .78rem;
+      color: var(--muted);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 3px 7px;
+      font-size: .68rem;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .pill.ok { color: var(--ok); background: rgba(72,213,151,.08); }
+    .pill.bad { color: var(--bad); background: rgba(255,112,128,.08); }
+    .pill.warn { color: var(--warn); background: rgba(255,204,102,.08); }
+
+    .inverter-power {
+      margin-top: 7px;
+      font-size: 1.1rem;
+      font-weight: 720;
+    }
+
+    .alarms {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      min-height: 30px;
+      align-content: flex-start;
+    }
+
+    .alarm {
+      border-radius: 999px;
+      padding: 6px 9px;
+      font-size: .72rem;
+      border: 1px solid rgba(255,112,128,.28);
+      color: #ffd7dc;
+      background: rgba(255,112,128,.08);
+    }
+
+    .alarm.ok {
+      color: #c9ffe9;
+      border-color: rgba(72,213,151,.28);
+      background: rgba(72,213,151,.08);
+    }
+
+    .chart-panel { padding: 12px; }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 2px 2px 10px;
+    }
+
+    .toolbar-left { min-width: 0; }
+
+    .toolbar-title {
+      font-weight: 680;
+      font-size: .96rem;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: .71rem;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-line {
+      width: 15px;
+      height: 3px;
+      border-radius: 99px;
+      background: currentColor;
+    }
+
+    .ranges {
+      display: flex;
+      gap: 5px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      max-width: 100%;
+    }
+
+    .ranges::-webkit-scrollbar { display: none; }
+
+    button {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 7px 10px;
+      font: inherit;
+      font-size: .75rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button.active {
+      color: var(--text);
+      border-color: rgba(79,180,255,.55);
+      background: rgba(79,180,255,.16);
+    }
+
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      height: min(58vh, 560px);
+      min-height: 315px;
+      border-radius: 13px;
+      overflow: hidden;
+      background: rgba(0, 0, 0, .08);
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .tooltip {
+      position: absolute;
+      display: none;
+      pointer-events: none;
+      transform: translate(-50%, calc(-100% - 12px));
+      background: rgba(5, 12, 22, .96);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: .74rem;
+      line-height: 1.45;
+      white-space: nowrap;
+      box-shadow: var(--shadow);
+      z-index: 3;
+    }
+
+    .message {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 10px;
+      min-height: 1.4em;
+      color: var(--muted);
+      font-size: .79rem;
+      overflow-wrap: anywhere;
+    }
+
+    footer {
+      color: var(--muted);
+      font-size: .71rem;
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .status-row { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 680px) {
+      header { align-items: flex-start; }
+      .cards { grid-template-columns: 1.35fr 1fr; }
+      .cards .card:first-child { grid-column: 1 / -1; }
+      .cards .card:last-child { grid-column: 1 / -1; }
+      .inverters { grid-template-columns: 1fr; }
+      .toolbar { align-items: flex-start; flex-direction: column; }
+      .ranges { width: 100%; }
+      .canvas-wrap { height: 49vh; min-height: 290px; }
+      .message { flex-direction: column; gap: 3px; }
+    }
+
+    @media (max-width: 390px) {
+      .page { padding-left: 10px; padding-right: 10px; }
+      .card, .panel { border-radius: 15px; }
+      .card { padding: 12px; }
+      button { padding: 7px 9px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <h1>grid_controller — Controle de geração</h1>
+        <div class="subtitle">Estatísticas consolidadas pelo ESP em janelas de 5 minutos</div>
+      </div>
+      <div class="live">
+        <span id="dot" class="dot"></span>
+        <span id="connectionText">Conectando…</span>
+      </div>
+    </header>
+
+    <section class="cards">
+      <article class="card">
+        <div class="label">Potência no URP6000</div>
+        <div id="meterPower" class="value power">—<span class="unit">kW</span></div>
+        <div id="meterMeta" class="secondary">Aguardando medidor</div>
+      </article>
+      <article class="card">
+        <div class="label">Geração controlada</div>
+        <div id="controlledPower" class="value">— kW</div>
+        <div id="onlineMeta" class="secondary">0/3 inversores disponíveis</div>
+      </article>
+      <article class="card">
+        <div class="label">Setpoint / erro</div>
+        <div id="setpointValue" class="value">— kW</div>
+        <div id="errorValue" class="secondary">Erro: — kW</div>
+      </article>
+      <article class="card">
+        <div class="label">Comando total</div>
+        <div id="commandValue" class="value">— kW</div>
+        <div id="controlMode" class="secondary">Controle: —</div>
+      </article>
+    </section>
+
+    <section class="status-row">
+      <article class="panel">
+        <h2 class="panel-title">Inversores</h2>
+        <div id="inverters" class="inverters"></div>
+      </article>
+      <article class="panel">
+        <h2 class="panel-title">Alarmes e coleta</h2>
+        <div id="alarms" class="alarms"></div>
+        <div id="collectorMeta" class="secondary">Aguardando o servidor…</div>
+      </article>
+    </section>
+
+    <section class="panel chart-panel">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <div class="toolbar-title">Histórico agregado</div>
+          <div class="legend">
+            <span class="legend-item" style="color:var(--meter)"><span class="legend-line"></span>URP média + min/máx</span>
+            <span class="legend-item" style="color:var(--inverter)"><span class="legend-line"></span>Inversores média + min/máx</span>
+            <span class="legend-item" style="color:var(--setpoint)"><span class="legend-line"></span>Setpoint</span>
+          </div>
+        </div>
+        <div class="ranges" aria-label="Janela do gráfico">
+          <button data-hours="1">1 h</button>
+          <button data-hours="6">6 h</button>
+          <button data-hours="12">12 h</button>
+          <button data-hours="24" class="active">24 h</button>
+          <button data-hours="168">7 d</button>
+          <button data-hours="720">30 d</button>
+        </div>
+      </div>
+
+      <div id="canvasWrap" class="canvas-wrap">
+        <canvas id="chart"></canvas>
+        <div id="tooltip" class="tooltip"></div>
+      </div>
+
+      <div class="message">
+        <span id="message">Aguardando a primeira janela estatística…</span>
+        <span id="pointCount">0 pontos</span>
+      </div>
+    </section>
+
+    <footer>
+      O CSV é persistido pelo computador; o ESP mantém apenas um buffer temporário em RAM.
+    </footer>
+  </main>
+
+  <script>
+    "use strict";
+
+    const canvas = document.getElementById("chart");
+    const ctx = canvas.getContext("2d");
+    const wrap = document.getElementById("canvasWrap");
+    const tooltip = document.getElementById("tooltip");
+
+    const dotEl = document.getElementById("dot");
+    const connectionTextEl = document.getElementById("connectionText");
+    const meterPowerEl = document.getElementById("meterPower");
+    const meterMetaEl = document.getElementById("meterMeta");
+    const controlledPowerEl = document.getElementById("controlledPower");
+    const onlineMetaEl = document.getElementById("onlineMeta");
+    const setpointValueEl = document.getElementById("setpointValue");
+    const errorValueEl = document.getElementById("errorValue");
+    const commandValueEl = document.getElementById("commandValue");
+    const controlModeEl = document.getElementById("controlMode");
+    const invertersEl = document.getElementById("inverters");
+    const alarmsEl = document.getElementById("alarms");
+    const collectorMetaEl = document.getElementById("collectorMeta");
+    const messageEl = document.getElementById("message");
+    const pointCountEl = document.getElementById("pointCount");
+
+    let points = [];
+    let lastId = 0;
+    let selectedHours = 24;
+    let polling = false;
+    let pointerX = null;
+    let latestState = {};
+
+    const colors = {
+      text: "#eef5ff",
+      muted: "#9db0ca",
+      meter: "#4fb4ff",
+      meterRange: "rgba(79,180,255,.22)",
+      inverter: "#51d6a1",
+      inverterRange: "rgba(81,214,161,.20)",
+      setpoint: "#ffbf69",
+      grid: "rgba(172,194,222,.14)",
+      cross: "rgba(238,245,255,.36)",
+      zero: "rgba(255,255,255,.22)"
+    };
+
+    const alarmLabels = {
+      1: "Wi-Fi desconectado",
+      2: "URP6000 inválido",
+      4: "Inversor ID 1 offline",
+      8: "Inversor ID 2 offline",
+      16: "Inversor ID 3 offline",
+      32: "Failsafe ativo",
+      64: "Controle PI desabilitado",
+      128: "Heap baixo"
+    };
+
+    function numeric(value, fallback = null) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
+    }
+
+    function kwFromW(value) {
+      const number = numeric(value);
+      return number == null ? null : number / 1000;
+    }
+
+    function formatKw(value, digits = 2) {
+      return Number.isFinite(value) ? value.toFixed(digits) : "—";
+    }
+
+    function formatLocal(ms, seconds = true) {
+      if (!ms) return "—";
+      return new Intl.DateTimeFormat("pt-BR", {
+        day: selectedHours > 24 ? "2-digit" : undefined,
+        month: selectedHours > 24 ? "2-digit" : undefined,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: seconds ? "2-digit" : undefined
+      }).format(new Date(ms));
+    }
+
+    function ageText(ms) {
+      if (!ms) return "sem contato";
+      const seconds = Math.max(0, Math.round((Date.now() - ms) / 1000));
+      if (seconds < 60) return `há ${seconds}s`;
+      if (seconds < 3600) return `há ${Math.floor(seconds / 60)}min`;
+      return `há ${Math.floor(seconds / 3600)}h`;
+    }
+
+    function alarmNames(state) {
+      if (Array.isArray(state.alarm_names) && state.alarm_names.length) {
+        return state.alarm_names;
+      }
+      const flags = Number(state.alarm_flags || 0);
+      return Object.entries(alarmLabels)
+        .filter(([mask]) => (flags & Number(mask)) !== 0)
+        .map(([, label]) => label);
+    }
+
+    function updateState(state) {
+      latestState = state || {};
+      const serverOnline = state.status === "online";
+      const stale = state.last_contact_ms && Date.now() - state.last_contact_ms > 120000;
+      dotEl.className = `dot ${serverOnline && !stale ? "online" : "offline"}`;
+      connectionTextEl.textContent = serverOnline && !stale ? "Online" : "Sem coleta";
+
+      const meterKw = kwFromW(state.meter_filtered_w);
+      const controlledKw = kwFromW(state.controlled_power_w);
+      const setpointKw = kwFromW(state.setpoint_w);
+      const errorKw = kwFromW(state.error_w);
+      const commandKw = kwFromW(state.total_command_w);
+
+      meterPowerEl.innerHTML = `${formatKw(meterKw, 3)}<span class="unit">kW</span>`;
+      meterMetaEl.textContent = state.meter_valid
+        ? `SEQ ${state.meter_seq ?? "—"} · idade ${state.meter_age_s ?? "—"}s`
+        : "Leitura do medidor inválida";
+      controlledPowerEl.textContent = `${formatKw(controlledKw, 2)} kW`;
+      onlineMetaEl.textContent = `${state.online_count ?? 0}/3 inversores com feedback válido`;
+      setpointValueEl.textContent = `${formatKw(setpointKw, 2)} kW`;
+      errorValueEl.textContent = `Erro: ${formatKw(errorKw, 2)} kW`;
+      commandValueEl.textContent = `${formatKw(commandKw, 2)} kW`;
+      controlModeEl.textContent = state.failsafe
+        ? "Failsafe ativo"
+        : state.control_enabled ? "PI habilitado" : "PI pausado";
+
+      const inverters = Array.isArray(state.inverters) ? state.inverters : [];
+      invertersEl.innerHTML = inverters.length ? inverters.map(inverter => {
+        const activeKw = kwFromW(inverter.active_w);
+        const ratedKw = kwFromW(inverter.rated_w);
+        const commandInvKw = kwFromW(inverter.command_w);
+        const statusClass = inverter.online ? "ok" : inverter.comm_online ? "warn" : "bad";
+        const statusText = inverter.online ? "feedback OK" : inverter.comm_online ? "feedback antigo" : "offline";
+        return `
+          <div class="inverter-card">
+            <div class="inverter-head">
+              <span>ID ${inverter.id} · ${escapeHtml(inverter.name || "Inversor")}</span>
+              <span class="pill ${statusClass}">${statusText}</span>
+            </div>
+            <div class="inverter-power">${formatKw(activeKw, 2)} kW</div>
+            <div class="secondary">Nominal ${formatKw(ratedKw, 1)} kW · comando ${formatKw(commandInvKw, 1)} kW · erros ${inverter.errors ?? 0}</div>
+          </div>`;
+      }).join("") : "<div class='secondary'>Sem dados dos inversores.</div>";
+
+      const alarms = alarmNames(state);
+      alarmsEl.innerHTML = alarms.length
+        ? alarms.map(name => `<span class="alarm">${escapeHtml(name)}</span>`).join("")
+        : `<span class="alarm ok">Sem alarmes ativos</span>`;
+
+      collectorMetaEl.textContent = [
+        `Contato ${ageText(state.last_contact_ms)}`,
+        state.stored_points != null ? `${state.stored_points} janelas em memória` : null,
+        state.last_bucket_seq != null ? `última janela ${state.last_bucket_seq}` : null,
+        state.csv_path ? `CSV: ${state.csv_path}` : null
+      ].filter(Boolean).join(" · ");
+
+      messageEl.textContent = state.message || "Leitura normal";
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function prunePoints() {
+      const cutoff = Date.now() - selectedHours * 3600000;
+      points = points.filter(point => point.t >= cutoff);
+      pointCountEl.textContent = `${points.length} ${points.length === 1 ? "ponto" : "pontos"}`;
+    }
+
+    async function loadHistory() {
+      const response = await fetch(`/api/history?hours=${selectedHours}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      points = Array.isArray(payload.points) ? payload.points : [];
+      lastId = points.length ? points[points.length - 1].id : 0;
+      updateState(payload.state || {});
+      prunePoints();
+      draw();
+    }
+
+    async function pollLatest() {
+      if (polling) return;
+      polling = true;
+      try {
+        const response = await fetch(`/api/latest?after=${lastId}`, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const payload = await response.json();
+        const newPoints = Array.isArray(payload.points) ? payload.points : [];
+        if (newPoints.length) {
+          points.push(...newPoints);
+          lastId = newPoints[newPoints.length - 1].id;
+          prunePoints();
+        }
+        updateState(payload.state || {});
+        draw();
+      } catch (error) {
+        dotEl.className = "dot offline";
+        connectionTextEl.textContent = "Servidor indisponível";
+        messageEl.textContent = error.message;
+      } finally {
+        polling = false;
+      }
+    }
+
+    function resizeCanvas() {
+      const rect = wrap.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw();
+    }
+
+    function visiblePoints() {
+      const cutoff = Date.now() - selectedHours * 3600000;
+      return points.filter(point => point.t >= cutoff);
+    }
+
+    function calculateBounds(data) {
+      if (!data.length) return { minY: 0, maxY: 1 };
+      let minY = Infinity;
+      let maxY = -Infinity;
+      for (const point of data) {
+        for (const value of [
+          point.meter_min_kw, point.meter_max_kw,
+          point.inv_min_kw, point.inv_max_kw,
+          point.setpoint_kw
+        ]) {
+          if (!Number.isFinite(value)) continue;
+          if (value < minY) minY = value;
+          if (value > maxY) maxY = value;
+        }
+      }
+      if (!Number.isFinite(minY) || !Number.isFinite(maxY)) return { minY: 0, maxY: 1 };
+      if (minY > 0 && minY < maxY * .25) minY = 0;
+      const span = Math.max(maxY - minY, 1);
+      const margin = Math.max(span * .09, Math.abs(maxY) * .02, .2);
+      return { minY: minY - margin, maxY: maxY + margin };
+    }
+
+    function axisTime(ms) {
+      const date = new Date(ms);
+      if (selectedHours <= 12) {
+        return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      }
+      if (selectedHours <= 24) {
+        return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      }
+      return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    }
+
+    function aggregateByPixel(data, xScale) {
+      const buckets = new Map();
+      for (const point of data) {
+        const x = Math.round(xScale(point.t));
+        let bucket = buckets.get(x);
+        if (!bucket) {
+          bucket = {
+            x, t: point.t, count: 0,
+            meterAvgSum: 0, meterAvgCount: 0,
+            meterMin: Infinity, meterMax: -Infinity,
+            invAvgSum: 0, invAvgCount: 0,
+            invMin: Infinity, invMax: -Infinity,
+            setpointSum: 0, setpointCount: 0
+          };
+          buckets.set(x, bucket);
+        }
+        bucket.count++;
+        bucket.t = point.t;
+        if (Number.isFinite(point.meter_avg_kw)) { bucket.meterAvgSum += point.meter_avg_kw; bucket.meterAvgCount++; }
+        if (Number.isFinite(point.meter_min_kw)) bucket.meterMin = Math.min(bucket.meterMin, point.meter_min_kw);
+        if (Number.isFinite(point.meter_max_kw)) bucket.meterMax = Math.max(bucket.meterMax, point.meter_max_kw);
+        if (Number.isFinite(point.inv_avg_kw)) { bucket.invAvgSum += point.inv_avg_kw; bucket.invAvgCount++; }
+        if (Number.isFinite(point.inv_min_kw)) bucket.invMin = Math.min(bucket.invMin, point.inv_min_kw);
+        if (Number.isFinite(point.inv_max_kw)) bucket.invMax = Math.max(bucket.invMax, point.inv_max_kw);
+        if (Number.isFinite(point.setpoint_kw)) { bucket.setpointSum += point.setpoint_kw; bucket.setpointCount++; }
+      }
+      return [...buckets.values()].sort((a, b) => a.x - b.x).map(bucket => ({
+        x: bucket.x,
+        t: bucket.t,
+        meterAvg: bucket.meterAvgCount ? bucket.meterAvgSum / bucket.meterAvgCount : null,
+        meterMin: Number.isFinite(bucket.meterMin) ? bucket.meterMin : null,
+        meterMax: Number.isFinite(bucket.meterMax) ? bucket.meterMax : null,
+        invAvg: bucket.invAvgCount ? bucket.invAvgSum / bucket.invAvgCount : null,
+        invMin: Number.isFinite(bucket.invMin) ? bucket.invMin : null,
+        invMax: Number.isFinite(bucket.invMax) ? bucket.invMax : null,
+        setpoint: bucket.setpointCount ? bucket.setpointSum / bucket.setpointCount : null
+      }));
+    }
+
+    function drawSeries(columns, field, yScale, color, dashed = false) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.8;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.setLineDash(dashed ? [6, 5] : []);
+      ctx.beginPath();
+      let drawing = false;
+      for (const column of columns) {
+        const value = column[field];
+        if (!Number.isFinite(value)) { drawing = false; continue; }
+        const y = yScale(value);
+        if (!drawing) { ctx.moveTo(column.x, y); drawing = true; }
+        else ctx.lineTo(column.x, y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    function draw() {
+      const width = wrap.clientWidth;
+      const height = wrap.clientHeight;
+      if (!width || !height) return;
+      ctx.clearRect(0, 0, width, height);
+
+      const margin = { left: width < 430 ? 49 : 63, right: 12, top: 14, bottom: 36 };
+      const plotW = Math.max(1, width - margin.left - margin.right);
+      const plotH = Math.max(1, height - margin.top - margin.bottom);
+      const data = visiblePoints();
+      const maxX = Date.now();
+      const minX = maxX - selectedHours * 3600000;
+      const { minY, maxY } = calculateBounds(data);
+      const xScale = t => margin.left + ((t - minX) / (maxX - minX)) * plotW;
+      const yScale = value => margin.top + (1 - (value - minY) / (maxY - minY)) * plotH;
+
+      ctx.font = "12px system-ui, sans-serif";
+      ctx.textBaseline = "middle";
+
+      const yTicks = 5;
+      for (let index = 0; index <= yTicks; index++) {
+        const ratio = index / yTicks;
+        const y = margin.top + ratio * plotH;
+        const value = maxY - ratio * (maxY - minY);
+        ctx.strokeStyle = colors.grid;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(margin.left, y);
+        ctx.lineTo(width - margin.right, y);
+        ctx.stroke();
+        ctx.fillStyle = colors.muted;
+        ctx.textAlign = "right";
+        ctx.fillText(value.toFixed(1), margin.left - 8, y);
+      }
+
+      if (minY < 0 && maxY > 0) {
+        const zeroY = yScale(0);
+        ctx.strokeStyle = colors.zero;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(margin.left, zeroY);
+        ctx.lineTo(width - margin.right, zeroY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      const xTicks = width < 500 ? 4 : 6;
+      for (let index = 0; index <= xTicks; index++) {
+        const ratio = index / xTicks;
+        const x = margin.left + ratio * plotW;
+        const t = minX + ratio * (maxX - minX);
+        ctx.strokeStyle = colors.grid;
+        ctx.beginPath();
+        ctx.moveTo(x, margin.top);
+        ctx.lineTo(x, margin.top + plotH);
+        ctx.stroke();
+        ctx.fillStyle = colors.muted;
+        ctx.textAlign = index === 0 ? "left" : index === xTicks ? "right" : "center";
+        ctx.fillText(axisTime(t), x, margin.top + plotH + 21);
+      }
+
+      ctx.save();
+      ctx.translate(13, margin.top + plotH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillStyle = colors.muted;
+      ctx.textAlign = "center";
+      ctx.fillText("Potência (kW)", 0, 0);
+      ctx.restore();
+
+      if (!data.length) {
+        ctx.fillStyle = colors.muted;
+        ctx.textAlign = "center";
+        ctx.font = "14px system-ui, sans-serif";
+        ctx.fillText("Aguardando janelas estatísticas", margin.left + plotW / 2, margin.top + plotH / 2);
+        tooltip.style.display = "none";
+        return;
+      }
+
+      const columns = aggregateByPixel(data, xScale);
+
+      for (const column of columns) {
+        if (Number.isFinite(column.meterMin) && Number.isFinite(column.meterMax)) {
+          ctx.strokeStyle = colors.meterRange;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(column.x, yScale(column.meterMin));
+          ctx.lineTo(column.x, yScale(column.meterMax));
+          ctx.stroke();
+        }
+        if (Number.isFinite(column.invMin) && Number.isFinite(column.invMax)) {
+          ctx.strokeStyle = colors.inverterRange;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(column.x + .7, yScale(column.invMin));
+          ctx.lineTo(column.x + .7, yScale(column.invMax));
+          ctx.stroke();
+        }
+      }
+
+      drawSeries(columns, "meterAvg", yScale, colors.meter);
+      drawSeries(columns, "invAvg", yScale, colors.inverter);
+      drawSeries(columns, "setpoint", yScale, colors.setpoint, true);
+
+      if (pointerX != null) {
+        const plotX = Math.min(Math.max(pointerX, margin.left), width - margin.right);
+        const targetTime = minX + ((plotX - margin.left) / plotW) * (maxX - minX);
+        let closest = data[0];
+        let distance = Math.abs(closest.t - targetTime);
+        for (let index = 1; index < data.length; index++) {
+          const nextDistance = Math.abs(data[index].t - targetTime);
+          if (nextDistance < distance) { closest = data[index]; distance = nextDistance; }
+        }
+        const x = xScale(closest.t);
+        const markerValue = Number.isFinite(closest.meter_avg_kw) ? closest.meter_avg_kw : closest.inv_avg_kw;
+        const y = yScale(markerValue);
+        ctx.strokeStyle = colors.cross;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, margin.top);
+        ctx.lineTo(x, margin.top + plotH);
+        ctx.stroke();
+        ctx.fillStyle = colors.meter;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        tooltip.innerHTML = [
+          `<strong>${formatLocal(closest.t)}</strong>`,
+          `URP: ${formatKw(closest.meter_avg_kw, 2)} kW (${formatKw(closest.meter_min_kw, 2)}…${formatKw(closest.meter_max_kw, 2)})`,
+          `Inversores: ${formatKw(closest.inv_avg_kw, 2)} kW (${formatKw(closest.inv_min_kw, 2)}…${formatKw(closest.inv_max_kw, 2)})`,
+          `Setpoint: ${formatKw(closest.setpoint_kw, 2)} kW`,
+          `Erro médio: ${formatKw(closest.error_kw, 2)} kW · ${closest.samples ?? 0} amostras`,
+          closest.alarm_flags ? `Alarmes: 0x${Number(closest.alarm_flags).toString(16).toUpperCase()}` : "Sem alarmes na janela"
+        ].join("<br>");
+        tooltip.style.display = "block";
+        tooltip.style.left = `${Math.min(Math.max(x, 112), width - 112)}px`;
+        tooltip.style.top = `${Math.max(y, 105)}px`;
+      } else {
+        tooltip.style.display = "none";
+      }
+    }
+
+    function pointerPosition(event) {
+      const rect = canvas.getBoundingClientRect();
+      return event.clientX - rect.left;
+    }
+
+    wrap.addEventListener("pointermove", event => { pointerX = pointerPosition(event); draw(); });
+    wrap.addEventListener("pointerdown", event => { pointerX = pointerPosition(event); draw(); });
+    wrap.addEventListener("pointerleave", () => { pointerX = null; draw(); });
+    wrap.addEventListener("pointerup", () => {
+      window.setTimeout(() => { pointerX = null; draw(); }, 1600);
+    });
+
+    document.querySelectorAll("[data-hours]").forEach(button => {
+      button.addEventListener("click", async () => {
+        selectedHours = Number(button.dataset.hours);
+        document.querySelectorAll("[data-hours]").forEach(item => item.classList.toggle("active", item === button));
+        try { await loadHistory(); }
+        catch (error) { messageEl.textContent = error.message; }
+      });
+    });
+
+    new ResizeObserver(resizeCanvas).observe(wrap);
+    window.addEventListener("orientationchange", () => window.setTimeout(resizeCanvas, 180));
+
+    loadHistory().catch(error => { messageEl.textContent = error.message; });
+    window.setInterval(pollLatest, 10000);
+    window.setInterval(draw, 60000);
+  </script>
+</body>
+</html>

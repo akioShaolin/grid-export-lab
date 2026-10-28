@@ -1,0 +1,7 @@
+--- a/src/InverterControl.cpp
++++ b/src/InverterControl.cpp
+@@
+-            if (_map.PowerLimit.writable && _map.PowerLimit.scale == 0.0f) {
++            if (_map.PowerLimit.writable && _map.PowerLimit.scale != 0.0f) {
+                 return writeField(_map.PowerLimit, watts / _map.PowerLimit.scale);
+             }

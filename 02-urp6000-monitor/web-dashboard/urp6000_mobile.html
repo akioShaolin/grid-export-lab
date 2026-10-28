@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0c1424">
+  <title>URP6000 — Potência</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07101d;
+      --panel: #0f1b2d;
+      --panel2: #13223a;
+      --text: #eef5ff;
+      --muted: #9db0ca;
+      --line: #4fb4ff;
+      --line-fill: rgba(79, 180, 255, .12);
+      --grid: rgba(172, 194, 222, .14);
+      --ok: #48d597;
+      --warn: #ffcc66;
+      --bad: #ff7080;
+      --border: rgba(255, 255, 255, .08);
+      --shadow: 0 12px 36px rgba(0, 0, 0, .25);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(42, 111, 180, .18), transparent 34rem),
+        var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      width: min(100%, 1100px);
+      margin: 0 auto;
+      padding: max(16px, env(safe-area-inset-top))
+               max(14px, env(safe-area-inset-right))
+               max(24px, env(safe-area-inset-bottom))
+               max(14px, env(safe-area-inset-left));
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      font-size: clamp(1.1rem, 4.5vw, 1.55rem);
+      margin: 0;
+      letter-spacing: .01em;
+    }
+
+    .live {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: .88rem;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--warn);
+      box-shadow: 0 0 0 4px rgba(255, 204, 102, .12);
+    }
+
+    .dot.online {
+      background: var(--ok);
+      box-shadow: 0 0 0 4px rgba(72, 213, 151, .12);
+    }
+
+    .dot.offline {
+      background: var(--bad);
+      box-shadow: 0 0 0 4px rgba(255, 112, 128, .12);
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .card, .chart-card {
+      background: linear-gradient(180deg, rgba(255,255,255,.025), transparent), var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .card {
+      padding: 14px;
+      min-width: 0;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: .78rem;
+      margin-bottom: 7px;
+    }
+
+    .value {
+      font-size: clamp(1rem, 4vw, 1.35rem);
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .power {
+      font-size: clamp(2rem, 10vw, 3.8rem);
+      letter-spacing: -.045em;
+      line-height: 1;
+    }
+
+    .unit {
+      color: var(--muted);
+      font-size: .42em;
+      letter-spacing: 0;
+      margin-left: .2em;
+    }
+
+    .chart-card {
+      padding: 12px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 2px 2px 10px;
+    }
+
+    .toolbar-title {
+      font-weight: 650;
+      font-size: .95rem;
+    }
+
+    .ranges {
+      display: flex;
+      gap: 5px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .ranges::-webkit-scrollbar { display: none; }
+
+    button {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 7px 11px;
+      font: inherit;
+      font-size: .78rem;
+      cursor: pointer;
+    }
+
+    button.active {
+      color: var(--text);
+      border-color: rgba(79, 180, 255, .55);
+      background: rgba(79, 180, 255, .16);
+    }
+
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      height: min(56vh, 520px);
+      min-height: 300px;
+      border-radius: 12px;
+      overflow: hidden;
+      background: rgba(0, 0, 0, .08);
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .tooltip {
+      position: absolute;
+      display: none;
+      pointer-events: none;
+      transform: translate(-50%, calc(-100% - 12px));
+      background: rgba(5, 12, 22, .94);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: .78rem;
+      white-space: nowrap;
+      box-shadow: var(--shadow);
+    }
+
+    .message {
+      margin-top: 10px;
+      min-height: 1.4em;
+      color: var(--muted);
+      font-size: .82rem;
+      overflow-wrap: anywhere;
+    }
+
+    footer {
+      color: var(--muted);
+      font-size: .72rem;
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    @media (max-width: 680px) {
+      .cards {
+        grid-template-columns: 1.5fr 1fr;
+      }
+
+      .cards .card:first-child {
+        grid-column: 1 / -1;
+      }
+
+      .toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .ranges {
+        width: 100%;
+      }
+
+      .canvas-wrap {
+        height: 49vh;
+        min-height: 280px;
+      }
+    }
+
+    @media (max-width: 390px) {
+      .page { padding-left: 10px; padding-right: 10px; }
+      .card, .chart-card { border-radius: 15px; }
+      .card { padding: 12px; }
+      button { padding: 7px 9px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <h1>Potência ativa total — URP6000</h1>
+      <div class="live">
+        <span id="dot" class="dot"></span>
+        <span id="connectionText">Conectando…</span>
+      </div>
+    </header>
+
+    <section class="cards">
+      <article class="card">
+        <div class="label">Potência atual</div>
+        <div id="power" class="value power">—<span class="unit">kW</span></div>
+      </article>
+      <article class="card">
+        <div class="label">Atualização</div>
+        <div id="updated" class="value">—</div>
+      </article>
+      <article class="card">
+        <div class="label">Snapshot</div>
+        <div id="snapshot" class="value">—</div>
+      </article>
+    </section>
+
+    <section class="chart-card">
+      <div class="toolbar">
+        <div class="toolbar-title">Histórico</div>
+        <div class="ranges" aria-label="Janela do gráfico">
+          <button data-hours="0.25">15 min</button>
+          <button data-hours="1">1 h</button>
+          <button data-hours="6">6 h</button>
+          <button data-hours="12" class="active">12 h</button>
+        </div>
+      </div>
+
+      <div id="canvasWrap" class="canvas-wrap">
+        <canvas id="chart"></canvas>
+        <div id="tooltip" class="tooltip"></div>
+      </div>
+
+      <div id="message" class="message">Aguardando a primeira leitura…</div>
+    </section>
+
+    <footer>
+      Polling de 1 segundo · histórico máximo de 12 horas
+    </footer>
+  </main>
+
+  <script>
+    "use strict";
+
+    const canvas = document.getElementById("chart");
+    const ctx = canvas.getContext("2d");
+    const wrap = document.getElementById("canvasWrap");
+    const tooltip = document.getElementById("tooltip");
+
+    const powerEl = document.getElementById("power");
+    const updatedEl = document.getElementById("updated");
+    const snapshotEl = document.getElementById("snapshot");
+    const messageEl = document.getElementById("message");
+    const dotEl = document.getElementById("dot");
+    const connectionTextEl = document.getElementById("connectionText");
+
+    let points = [];
+    let lastId = 0;
+    let selectedHours = 12;
+    let polling = false;
+    let pointerX = null;
+
+    const colors = {
+      text: "#eef5ff",
+      muted: "#9db0ca",
+      line: "#4fb4ff",
+      fill: "rgba(79, 180, 255, .12)",
+      grid: "rgba(172, 194, 222, .14)",
+      cross: "rgba(238, 245, 255, .35)"
+    };
+
+    function formatPower(value) {
+      return Number.isFinite(value) ? value.toFixed(3) : "—";
+    }
+
+    function formatTime(ms, withSeconds = true) {
+      if (!ms) return "—";
+      return new Intl.DateTimeFormat("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: withSeconds ? "2-digit" : undefined
+      }).format(new Date(ms));
+    }
+
+    function updateState(state) {
+      const online = state.status === "online";
+      dotEl.className = "dot " + (online ? "online" : "offline");
+      connectionTextEl.textContent = online ? "Online" : "Sem leitura";
+
+      powerEl.innerHTML =
+        `${formatPower(state.power_kw)}<span class="unit">kW</span>`;
+      updatedEl.textContent = formatTime(state.last_update_ms);
+      snapshotEl.textContent =
+        state.seq == null ? "—" : `SEQ ${state.seq} · ${state.age_s}s`;
+
+      messageEl.textContent = state.message || "";
+    }
+
+    function prunePoints() {
+      const cutoff = Date.now() - selectedHours * 3600 * 1000;
+      points = points.filter(point => point.t >= cutoff);
+    }
+
+    async function loadHistory() {
+      const response = await fetch(`/api/history?hours=${selectedHours}`, {
+        cache: "no-store"
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const payload = await response.json();
+      points = payload.points || [];
+      lastId = points.length ? points[points.length - 1].id : 0;
+      updateState(payload.state);
+      prunePoints();
+      draw();
+    }
+
+    async function pollLatest() {
+      if (polling) return;
+      polling = true;
+
+      try {
+        const response = await fetch(`/api/latest?after=${lastId}`, {
+          cache: "no-store"
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const payload = await response.json();
+        const newPoints = payload.points || [];
+
+        if (newPoints.length) {
+          points.push(...newPoints);
+          lastId = newPoints[newPoints.length - 1].id;
+          prunePoints();
+        }
+
+        updateState(payload.state);
+        draw();
+      } catch (error) {
+        dotEl.className = "dot offline";
+        connectionTextEl.textContent = "Servidor indisponível";
+        messageEl.textContent = error.message;
+      } finally {
+        polling = false;
+      }
+    }
+
+    function resizeCanvas() {
+      const rect = wrap.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw();
+    }
+
+    function visiblePoints() {
+      const cutoff = Date.now() - selectedHours * 3600 * 1000;
+      return points.filter(point => point.t >= cutoff);
+    }
+
+    function calculateBounds(data) {
+      if (!data.length) {
+        return { minY: 0, maxY: 1 };
+      }
+
+      let minY = Infinity;
+      let maxY = -Infinity;
+
+      for (const point of data) {
+        if (point.kw < minY) minY = point.kw;
+        if (point.kw > maxY) maxY = point.kw;
+      }
+
+      const span = maxY - minY;
+      const margin = Math.max(span * 0.10, Math.abs(maxY) * 0.025, 0.2);
+
+      if (span < 0.001) {
+        minY -= margin;
+        maxY += margin;
+      } else {
+        minY -= margin;
+        maxY += margin;
+      }
+
+      return { minY, maxY };
+    }
+
+    function formatAxisTime(ms) {
+      const date = new Date(ms);
+      if (selectedHours <= 1) {
+        return date.toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit"
+        });
+      }
+      return date.toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function draw() {
+      const width = wrap.clientWidth;
+      const height = wrap.clientHeight;
+      if (!width || !height) return;
+
+      ctx.clearRect(0, 0, width, height);
+
+      const margin = {
+        left: width < 430 ? 48 : 62,
+        right: 12,
+        top: 14,
+        bottom: 34
+      };
+
+      const plotW = Math.max(1, width - margin.left - margin.right);
+      const plotH = Math.max(1, height - margin.top - margin.bottom);
+      const data = visiblePoints();
+
+      const now = Date.now();
+      const minX = now - selectedHours * 3600 * 1000;
+      const maxX = now;
+      const { minY, maxY } = calculateBounds(data);
+
+      const xScale = t =>
+        margin.left + ((t - minX) / (maxX - minX)) * plotW;
+      const yScale = value =>
+        margin.top + (1 - (value - minY) / (maxY - minY)) * plotH;
+
+      ctx.font = "12px system-ui, sans-serif";
+      ctx.textBaseline = "middle";
+
+      const yTicks = 5;
+      for (let index = 0; index <= yTicks; index++) {
+        const ratio = index / yTicks;
+        const y = margin.top + ratio * plotH;
+        const value = maxY - ratio * (maxY - minY);
+
+        ctx.strokeStyle = colors.grid;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(margin.left, y);
+        ctx.lineTo(width - margin.right, y);
+        ctx.stroke();
+
+        ctx.fillStyle = colors.muted;
+        ctx.textAlign = "right";
+        ctx.fillText(value.toFixed(1), margin.left - 8, y);
+      }
+
+      const xTicks = width < 500 ? 4 : 6;
+      for (let index = 0; index <= xTicks; index++) {
+        const ratio = index / xTicks;
+        const x = margin.left + ratio * plotW;
+        const t = minX + ratio * (maxX - minX);
+
+        ctx.strokeStyle = colors.grid;
+        ctx.beginPath();
+        ctx.moveTo(x, margin.top);
+        ctx.lineTo(x, margin.top + plotH);
+        ctx.stroke();
+
+        ctx.fillStyle = colors.muted;
+        ctx.textAlign =
+          index === 0 ? "left" : index === xTicks ? "right" : "center";
+        ctx.fillText(
+          formatAxisTime(t),
+          x,
+          margin.top + plotH + 20
+        );
+      }
+
+      ctx.save();
+      ctx.translate(13, margin.top + plotH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillStyle = colors.muted;
+      ctx.textAlign = "center";
+      ctx.fillText("Potência (kW)", 0, 0);
+      ctx.restore();
+
+      if (!data.length) {
+        ctx.fillStyle = colors.muted;
+        ctx.textAlign = "center";
+        ctx.font = "14px system-ui, sans-serif";
+        ctx.fillText(
+          "Aguardando dados",
+          margin.left + plotW / 2,
+          margin.top + plotH / 2
+        );
+        tooltip.style.display = "none";
+        return;
+      }
+
+      // Agrega por coluna de pixel para manter o gráfico leve com 43.200 pontos.
+      const buckets = new Map();
+      for (const point of data) {
+        const x = Math.round(xScale(point.t));
+        const current = buckets.get(x);
+        if (!current) {
+          buckets.set(x, {
+            x,
+            first: point.kw,
+            last: point.kw,
+            min: point.kw,
+            max: point.kw
+          });
+        } else {
+          current.last = point.kw;
+          if (point.kw < current.min) current.min = point.kw;
+          if (point.kw > current.max) current.max = point.kw;
+        }
+      }
+
+      const columns = [...buckets.values()].sort((a, b) => a.x - b.x);
+
+      ctx.strokeStyle = colors.line;
+      ctx.lineWidth = 1.6;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.beginPath();
+
+      let started = false;
+      for (const column of columns) {
+        const x = column.x;
+        const yMin = yScale(column.min);
+        const yMax = yScale(column.max);
+
+        if (!started) {
+          ctx.moveTo(x, yScale(column.first));
+          started = true;
+        }
+        ctx.lineTo(x, yMin);
+        if (Math.abs(yMax - yMin) > 0.5) {
+          ctx.lineTo(x, yMax);
+        }
+        ctx.lineTo(x, yScale(column.last));
+      }
+      ctx.stroke();
+
+      if (pointerX != null) {
+        const plotX = Math.min(
+          Math.max(pointerX, margin.left),
+          width - margin.right
+        );
+        const targetTime =
+          minX + ((plotX - margin.left) / plotW) * (maxX - minX);
+
+        let closest = data[0];
+        let distance = Math.abs(closest.t - targetTime);
+        for (let index = 1; index < data.length; index++) {
+          const nextDistance = Math.abs(data[index].t - targetTime);
+          if (nextDistance < distance) {
+            closest = data[index];
+            distance = nextDistance;
+          }
+        }
+
+        const x = xScale(closest.t);
+        const y = yScale(closest.kw);
+
+        ctx.strokeStyle = colors.cross;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, margin.top);
+        ctx.lineTo(x, margin.top + plotH);
+        ctx.stroke();
+
+        ctx.fillStyle = colors.line;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        tooltip.innerHTML =
+          `<strong>${closest.kw.toFixed(3)} kW</strong><br>${formatTime(closest.t)}`;
+        tooltip.style.display = "block";
+        tooltip.style.left = `${Math.min(Math.max(x, 70), width - 70)}px`;
+        tooltip.style.top = `${Math.max(y, 58)}px`;
+      } else {
+        tooltip.style.display = "none";
+      }
+    }
+
+    function pointerPosition(event) {
+      const rect = canvas.getBoundingClientRect();
+      const source = event.touches ? event.touches[0] : event;
+      return source.clientX - rect.left;
+    }
+
+    wrap.addEventListener("pointermove", event => {
+      pointerX = pointerPosition(event);
+      draw();
+    });
+
+    wrap.addEventListener("pointerdown", event => {
+      pointerX = pointerPosition(event);
+      draw();
+    });
+
+    wrap.addEventListener("pointerleave", () => {
+      pointerX = null;
+      draw();
+    });
+
+    wrap.addEventListener("pointerup", () => {
+      window.setTimeout(() => {
+        pointerX = null;
+        draw();
+      }, 1200);
+    });
+
+    document.querySelectorAll("[data-hours]").forEach(button => {
+      button.addEventListener("click", async () => {
+        selectedHours = Number(button.dataset.hours);
+        document.querySelectorAll("[data-hours]").forEach(item => {
+          item.classList.toggle("active", item === button);
+        });
+
+        try {
+          await loadHistory();
+        } catch (error) {
+          messageEl.textContent = error.message;
+        }
+      });
+    });
+
+    new ResizeObserver(resizeCanvas).observe(wrap);
+    window.addEventListener("orientationchange", () => {
+      window.setTimeout(resizeCanvas, 180);
+    });
+
+    loadHistory().catch(error => {
+      messageEl.textContent = error.message;
+    });
+
+    window.setInterval(pollLatest, 1000);
+  </script>
+</body>
+</html>

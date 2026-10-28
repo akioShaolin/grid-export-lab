@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Injeção Programada</title>
+
+  <style>
+    :root{
+      --bg:#f2f2f2;
+      --card:#ffffff;
+      --primary:#1976d2;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --border:#e5e7eb;
+
+      --console-bg:#0b0f14;
+      --console-text:#d1d5db;
+      --console-log:#22c55e;
+      --console-error:#ef4444;
+      --console-warn:#f59e0b;
+    }
+
+    *{ box-sizing:border-box; }
+    html, body{ height:100%; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 18px;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    .wrap{
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .card{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 18px rgba(0,0,0,.08);
+    }
+
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    h1{
+      font-size: 1.25rem;
+      margin:0;
+      color: var(--primary);
+      letter-spacing: .2px;
+    }
+
+    .status{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size: .9rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .dot{
+      width:10px; height:10px;
+      border-radius:999px;
+      background: #9ca3af;
+      box-shadow: 0 0 0 3px rgba(156,163,175,.25);
+    }
+    .dot.ok{
+      background: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34,197,94,.25);
+    }
+    .dot.bad{
+      background: #ef4444;
+      box-shadow: 0 0 0 3px rgba(239,68,68,.25);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .metric{
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fafafa;
+    }
+
+    .metric .label{
+      font-size:.85rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .metric .value{
+      font-size: 1.05rem;
+      font-weight: 600;
+      line-height: 1.25;
+      word-break: break-word;
+    }
+
+    hr{
+      border:0;
+      border-top: 1px solid var(--border);
+      margin: 14px 0;
+    }
+
+    h2{
+      font-size: 1.02rem;
+      margin: 0 0 10px 0;
+    }
+
+    .rtc-grid{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    .field label{
+      font-size: .78rem;
+      color: var(--muted);
+    }
+
+    input[type="number"]{
+      width:100%;
+      padding: 12px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 1rem;
+      outline: none;
+      background: #fff;
+    }
+    input[type="number"]:focus{
+      border-color: rgba(25,118,210,.55);
+      box-shadow: 0 0 0 3px rgba(25,118,210,.15);
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    button{
+      appearance:none;
+      border:0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 1rem;
+      cursor:pointer;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      min-width: 120px;
+    }
+    button.secondary{
+      background: #111827;
+    }
+    button.ghost{
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-weight: 600;
+    }
+    button:active{ transform: translateY(1px); }
+
+    .hint{
+      font-size: .85rem;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.35;
+    }
+
+    .console{
+      background: var(--console-bg);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.06);
+      padding: 10px;
+    }
+
+    .console-top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .console-title{
+      font-weight: 700;
+      color: #e5e7eb;
+      font-size: .95rem;
+    }
+
+    .console-actions{
+      display:flex;
+      gap: 8px;
+      align-items:center;
+    }
+
+    .toggle{
+      display:flex;
+      align-items:center;
+      gap: 6px;
+      color: #cbd5e1;
+      font-size: .85rem;
+      user-select:none;
+    }
+
+    .toggle input{
+      width: 16px;
+      height: 16px;
+    }
+
+    #consoleBody{
+      height: 200px;
+      overflow: auto;
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .82rem;
+      line-height: 1.35;
+      color: var(--console-text);
+    }
+
+    .line{ display:block; margin: 0 0 4px 0; }
+    .log{ color: var(--console-log); }
+    .err{ color: var(--console-error); }
+    .warn{ color: var(--console-warn); }
+
+    @media (max-width: 380px){
+      body{ padding: 12px; }
+      .rtc-grid{ grid-template-columns: 1fr 1fr; }
+      button{ width: 100%; }
+      .grid{ grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="card">
+      <header>
+        <h1>Injeção Programada</h1>
+        <div class="status" title="Status do WebSocket">
+          <span id="dot" class="dot"></span>
+          <span id="wsStatus">Desconectado</span>
+        </div>
+      </header>
+
+      <div class="grid">
+        <div class="metric">
+          <div class="label">Data/Hora</div>
+          <div id="hora" class="value">--</div>
+        </div>
+
+        <div class="metric">
+          <div class="label">Potência</div>
+          <div id="power" class="value">--</div>
+        </div>
+      </div>
+
+      <hr />
+
+      <h2>Ajustar RTC (teste)</h2>
+
+      <div class="rtc-grid">
+        <div class="field">
+          <label for="d">Dia</label>
+          <input id="d" type="number" inputmode="numeric" placeholder="DD" min="1" max="31" />
+        </div>
+        <div class="field">
+          <label for="m">Mês</label>
+          <input id="m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" />
+        </div>
+        <div class="field">
+          <label for="y">Ano</label>
+          <input id="y" type="number" inputmode="numeric" placeholder="AAAA" min="2000" max="2099" />
+        </div>
+
+        <div class="field">
+          <label for="hh">Hora</label>
+          <input id="hh" type="number" inputmode="numeric" placeholder="HH" min="0" max="23" />
+        </div>
+        <div class="field">
+          <label for="mm">Min</label>
+          <input id="mm" type="number" inputmode="numeric" placeholder="MM" min="0" max="59" />
+        </div>
+        <div class="field">
+          <label for="ss">Seg</label>
+          <input id="ss" type="number" inputmode="numeric" placeholder="SS" min="0" max="59" />
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="btnSet" type="button">Ajustar</button>
+        <button id="btnNow" type="button" class="ghost">Usar hora do dispositivo</button>
+      </div>
+
+      <div class="hint">
+        Depois do teste, o RTC será sincronizado automaticamente com o inversor.
+        O console abaixo mostra os logs enviados pelo ESP8266.
+      </div>
+
+      <hr />
+
+      <div class="console">
+        <div class="console-top">
+          <div class="console-title">Console</div>
+
+          <div class="console-actions">
+            <label class="toggle" title="Manter rolagem no fim">
+              <input id="autoScroll" type="checkbox" checked />
+              Auto-scroll
+            </label>
+            <button id="btnClear" type="button" class="secondary">Limpar</button>
+          </div>
+        </div>
+
+        <div id="consoleBody" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Utilidades ----------
+    const $ = (id) => document.getElementById(id);
+
+    function pad2(n){ return String(n).padStart(2, "0"); }
+
+    function dowPtBr(dow){
+      switch (dow) {
+        case 0: return "Domingo";
+        case 1: return "Segunda-feira";
+        case 2: return "Terça-feira";
+        case 3: return "Quarta-feira";
+        case 4: return "Quinta-feira";
+        case 5: return "Sexta-feira";
+        case 6: return "Sábado";
+        default: return "";
+      }
+    }
+
+    function setWsStatus(ok, text){
+      $("wsStatus").textContent = text;
+      const dot = $("dot");
+      dot.classList.remove("ok", "bad");
+      dot.classList.add(ok ? "ok" : "bad");
+    }
+
+    function addLine(text, kind="log"){
+      const line = document.createElement("span");
+      line.className = `line ${kind}`;
+      const now = new Date().toLocaleTimeString();
+      line.textContent = `[${now}] ${text}`;
+      $("consoleBody").appendChild(line);
+
+      if ($("autoScroll").checked){
+        $("consoleBody").scrollTop = $("consoleBody").scrollHeight;
+      }
+    }
+
+    function clamp(n, min, max){
+      if (!Number.isFinite(n)) return null;
+      return Math.max(min, Math.min(max, n));
+    }
+
+    function getNum(id){
+      const v = Number($(id).value);
+      return Number.isFinite(v) ? v : null;
+    }
+
+    function setInputsFromDate(dt){
+      $("d").value  = dt.getDate();
+      $("m").value  = dt.getMonth() + 1;
+      $("y").value  = dt.getFullYear();
+      $("hh").value = dt.getHours();
+      $("mm").value = dt.getMinutes();
+      $("ss").value = dt.getSeconds();
+    }
+
+    // ---------- RTC ajuste (HTTP /set) ----------
+    async function ajustarRTC(){
+      const d  = clamp(getNum("d"),  1, 31);
+      const m  = clamp(getNum("m"),  1, 12);
+      const y  = clamp(getNum("y"),  2000, 2099);
+      const hh = clamp(getNum("hh"), 0, 23);
+      const mm = clamp(getNum("mm"), 0, 59);
+      const ss = clamp(getNum("ss"), 0, 59);
+
+      if ([d,m,y,hh,mm,ss].some(v => v === null)){
+        addLine("Preencha todos os campos do RTC corretamente.", "warn");
+        return;
+      }
+
+      const url = `/set?d=${d}&m=${m}&y=${y}&hh=${hh}&mm=${mm}&ss=${ss}`;
+
+      try{
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        addLine(`RTC ajustado para ${pad2(d)}/${pad2(m)}/${y} ${pad2(hh)}:${pad2(mm)}:${pad2(ss)}.`, "log");
+      }catch(err){
+        addLine(`Falha ao ajustar RTC: ${err.message}`, "err");
+      }
+    }
+
+    $("btnSet").addEventListener("click", ajustarRTC);
+
+    $("btnNow").addEventListener("click", () => {
+      setInputsFromDate(new Date());
+      addLine("Campos preenchidos com a hora do dispositivo.", "log");
+    });
+
+    $("btnClear").addEventListener("click", () => {
+      $("consoleBody").textContent = "";
+    });
+
+    // ---------- WebSocket ----------
+    // Usa o host atual (melhor que fixar 192.168.4.1)
+    const WS_PORT = 81;
+    let ws;
+    let reconnectTimer = null;
+
+    function wsUrl(){
+      const host = location.hostname || "192.168.4.1";
+      return `ws://${host}:${WS_PORT}/`;
+    }
+
+    function connectWS(){
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+
+      setWsStatus(false, "Conectando...");
+      ws = new WebSocket(wsUrl());
+
+      ws.onopen = () => {
+        setWsStatus(true, "Conectado");
+        addLine("WebSocket conectado.", "log");
+      };
+
+      ws.onerror = () => {
+        // Alguns browsers chamam onerror sem detalhes
+        addLine("Erro no WebSocket.", "err");
+      };
+
+      ws.onclose = () => {
+        setWsStatus(false, "Desconectado");
+        addLine("WebSocket desconectado. Tentando reconectar...", "warn");
+        scheduleReconnect();
+      };
+
+      ws.onmessage = (e) => {
+        const raw = String(e.data ?? "");
+        const msg = raw.trim();
+
+        if (!msg) return;
+
+        if (msg.startsWith("LOG:")){
+          addLine(msg, "log");
+          return;
+        }
+        if (msg.startsWith("ERR:")){
+          addLine(msg, "err");
+          return;
+        }
+
+        // tenta extrair um JSON mesmo se vier "lixo" junto
+        const i = msg.indexOf("{");
+        const j = msg.lastIndexOf("}");
+        if (i !== -1 && j !== -1 && j > i){
+          const jsonText = msg.slice(i, j+1);
+          try{
+            const d = JSON.parse(jsonText);
+          } catch (err) {
+            addLine("JSON inválido recebido.", "warn");
+            return;
+          }
+
+          // Ajuste para o seu payload do ESP:
+          // {"day":"..","month":"..","year":"..","hour":"..","minute":"..","second":"..","dayOfTheWeek":"..","power":".."}
+          const day = Number(d.day);
+          const month = Number(d.month);
+          const year = Number(d.year);
+          const hour = Number(d.hour);
+          const minute = Number(d.minute);
+          const second = Number(d.second);
+
+          const dowKey = (d.dayOfTheWeek !== undefined) ? "dayOfTheWeek" : (d.dow !== undefined ? "dow" : null);
+          const dow = dowKey ? Number(d[dowKey]) : NaN;
+
+          // power pode vir number ou string
+          const p = Number(d.power);
+
+          const dowText = Number.isFinite(dow) ? dowPtBr(dow) : "";
+          $("hora").textContent =
+            `${pad2(day)}/${pad2(month)}/${String(year).padStart(4,"0")} ${pad2(hour)}:${pad2(minute)}:${pad2(second)} ` +
+            (dowText ? `\n${dowText}` : "");
+
+          $("power").textContent = Number.isFinite(p) ? `${p.toFixed(2)} kW` : "--";
+          return;
+        }
+
+        // Qualquer outro texto cai como log “neutro”
+        if (msg.trim().length){
+          console.log(msg);
+        }
+      };
+    }
+
+    function scheduleReconnect(){
+      if (reconnectTimer) return;
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connectWS();
+      }, 1500);
+    }
+
+    // Preenche inputs com a hora do dispositivo inicialmente (facilita teste)
+    setInputsFromDate(new Date());
+
+    connectWS();
+  </script>
+</body>
+</html>

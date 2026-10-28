@@ -1,0 +1,1 @@
+# O coletor usa somente a biblioteca padrão do Python.

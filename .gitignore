@@ -1,0 +1,31 @@
+# Private/local configuration
+**/site_private.h
+**/site_private.py
+**/secrets.h
+**/secrets.py
+**/.env
+**/.env.*
+**/.pio/
+**/build/
+**/*.bin
+**/*.elf
+**/*.map
+**/*.hex
+**/*.o
+**/__pycache__/
+**/*.pyc
+**/.venv/
+**/venv/
+**/.vscode/
+**/.idea/
+**/.theia/
+**/*.log
+**/logs/
+**/runtime/
+# Historical programs write their original CSV names beside the sources.
+/01-rtu-tcp-tunnel/**/*.csv
+/02-urp6000-monitor/**/*.csv
+/03-inverter-gateway/**/*.csv
+/04-host-controller/**/*.csv
+/05-edge-controller/**/*.csv
+**/*.csv.tmp
